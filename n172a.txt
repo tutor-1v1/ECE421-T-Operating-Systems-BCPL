@@ -1,0 +1,46 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+RAID Levels:
+
+0:  Striping blocks, maybe in chunks.
+    B1 B2 B3 B4
+    B5 B6 B7 B8
+
+1:  Mirror
+    B1 B1
+    B2 B2
+
+2:  (not really used)
+    Each bit on a different drive,
+    synchronise spins,
+    parity disc
+
+3:  (not really used)
+    like 2, but byte-level spreading
+
+4:  Parity
+    Striping + extra disc for XOR blocks
+    B1 B2 B3 P123
+    B4 B5 B6 P456
+
+5:  Rotating parity
+    because P disc is a bottleneck
+    B1   B2   B3   P123
+    B4   B5   P456 B6
+    B7   P789 B8   B9
+
+6:  (not really used)
+    Double rotating parity
+
+01: Mirror of stripes
+    B1 B2 B1 B2
+
+10: Stripes of mirrors
+    B1 B1 B2 B2
+
+50: Stripes and rotating parity
+    B1  B2  P12 B3  B4  P34 B4  B6  P56
+    B7  P78 B8  B9  P9A BA  BB  PBC BC
+

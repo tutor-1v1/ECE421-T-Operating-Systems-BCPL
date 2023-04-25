@@ -1,0 +1,160 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+static { freepagelist, freepagelist_number }
+
+let find_free_pages() be
+{ let firstfreeword = ! 0x101;
+  let lastexistingword = (! 0x100) - 1;
+  let nextfreepage = (firstfreeword + 2047) / 2048;
+  let firstnonpage = (lastexistingword / 2048) + 1;
+  let totalpages, pagesneededfortable;
+  let laststackpn = @ firstfreeword / 2048;
+  let firststackpn = laststackpn - 1;
+
+  while true do
+  { let addr = (firststackpn << 11) + 123;
+    let v;
+    addr ! 0 := 0xAAAAAAAA;
+    addr ! 1 := 0x55555555;
+    if addr ! 0 <> 0xAAAAAAAA \/ addr ! 1 <> 0x55555555 then
+      break;
+    firststackpn -:= 1 }
+  firststackpn +:= 1;
+
+  totalpages := firstnonpage + (laststackpn - firststackpn) + 1;
+  pagesneededfortable := totalpages / 2048 + 1;
+  freepagelist := lastexistingword - pagesneededfortable * 2048 + 1;
+  freepagelist_number := 0;
+
+  for i = firststackpn to laststackpn do
+  { freepagelist ! freepagelist_number := i << 11;
+    freepagelist_number +:= 1 }
+
+  for i = 0 to nextfreepage - 1 do
+  { freepagelist ! freepagelist_number := i << 11;
+    freepagelist_number +:= 1 }
+
+  for i = firstnonpage - 1 - pagesneededfortable to nextfreepage by -1 do
+  { freepagelist ! freepagelist_number := i << 11;
+    freepagelist_number +:= 1 } }
+
+manifest
+{ page_address_only = bitnot 0x7FF, VALID = 1 }
+
+let get_page() be
+{ if freepagelist_number = 0 then
+  { outs("\nRun out of free pages\n");
+    finish } 
+  freepagelist_number -:= 1;
+  resultis freepagelist ! freepagelist_number }
+
+let release_page(addr) be
+{ addr := addr bitand page_address_only;
+  freepagelist ! freepagelist_number := addr;
+  freepagelist_number +:= 1 }
+
+let load_program(fname, page_table, offset) be
+{ let page_num = 0;
+  let buff_pos = offset;
+  let page_addr, pa;
+  let r = devctl(DC_TAPE_LOAD, 1, fname, 'R');
+  if r < 0 then
+  { out("error %d for load '%s'\n", r, fname);
+    finish }
+
+  page_addr := get_page();
+  page_table ! 0 := page_addr bitor VALID;
+  while true do
+  { if  buff_pos = 2048 then
+    { buff_pos := 0;
+      page_num +:= 1;
+      page_addr := get_page();
+      page_table ! page_num := page_addr bitor VALID }
+    pa := page_addr + buff_pos;
+    r := devctl(DC_TAPE_READ, 1, pa);
+    if r < 512 then break;
+    buff_pos +:= 128 }
+
+  devctl(DC_TAPE_UNLOAD, 1) }
+
+let set_up_os(osname) be
+{ let pdbr_value = get_page();    //   v C0000000
+  let pt_os_code = get_page();    //   v C0900000
+  let pt_os_stack = get_page();   //   v C097F800
+  let pt_os_attic = get_page();   //   v C0980000
+  let pt_os_freepages = get_page(); // v C0980800
+  let num_freepagelist_pages = (freepagelist_number + 2047) / 2048;
+  let page_addr;
+  assembly
+  { CLRPP [<pdbr_value>]
+    CLRPP [<pt_os_code>]
+    CLRPP [<pt_os_stack>]
+    CLRPP [<pt_os_attic>]
+    CLRPP [<pt_os_freepages>] }
+  pdbr_value ! 770 := pdbr_value bitor VALID;
+  pdbr_value ! 769 := pt_os_freepages bitor VALID;
+  pdbr_value ! 768 := pt_os_attic bitor VALID;
+  pdbr_value ! 767 := pt_os_stack bitor VALID;
+  pdbr_value ! 512 := pt_os_code bitor VALID;
+  page_addr := get_page();     // v BFFFF800
+  pt_os_stack ! 2047 := page_addr bitor VALID;
+  pt_os_attic ! 0 := pdbr_value bitor VALID;
+  page_addr := get_page();     // v C0000800
+  pt_os_attic ! 1 := page_addr bitor VALID;
+  assembly
+  { load  r1, [<page_addr>]
+    add   r1, 0x10
+    setsr r1, $INTVEC         // v C0000810
+    add   r1, 0x20
+    setsr r1, $CGBR           // v C0000830
+    load  r1, 0x100
+    setsr r1, $CGLEN }
+  for i = 0 to num_freepagelist_pages - 1 do
+    pt_os_freepages ! i := (freepagelist + i * 2048) bitor VALID;
+  load_program(osname, pt_os_code, 0);
+  page_addr ! 0 := 0xC0400000;    // first entry in attic page is V.A. of freepagelist
+  page_addr ! 1 := freepagelist_number;
+
+  resultis pdbr_value }
+
+let print_mem_map(pdbr) be
+{ out("00000000 to FFFFFFFF: PDBR = %x\n", pdbr);
+  for ptn = 1023 to 0 by -1 do          // page table number
+  { let pde = pdbr ! ptn;               // page directory entry
+    let pt = pde >> 11 << 11;           // page table's address
+    let ptrange = ptn << 22;            // beginning of PT's VA range
+    if pde = 0 then loop;
+    out("   %08x to %08x: ", ptrange, ptrange + 0x3FFFFF);
+    if (pde bitand VALID) = 0 then
+    { out("%08x - invalid\n", pde);
+      loop }
+    out("pp %d at %x\n", pde >> 11, pde >> 11 << 11);
+    for pn = 2047 to 0 by -1 do         // page number in table
+    { let pte = pt ! pn;                // page table entry
+      let range = ptrange + (pn << 11); // beginning of page's VA range
+      if pte = 0 then loop;
+      out("      %08x to %08x: ", range, range + 0x7FF);
+      if (pte bitand VALID) = 0 then
+      { out("%08x - invalid\n", pte);
+        loop }
+      out("pp %d at %x\n", pte >> 11, pte >> 11 << 11) } } }
+
+let start() be
+{ let pdbr_value, start_address, stack_ptr;
+  find_free_pages();
+  pdbr_value := set_up_os("os6.exe");
+  start_address := 0x80000000;
+  stack_ptr := 0xBFFFFFFF;
+  assembly
+  { LOAD   r1, [<pdbr_value>]
+    SETSR  r1, $PDBR
+    GETSR  r1, $FLAGS
+    SBIT   r1, $VM
+    LOAD   r2, [<start_address>]
+    LOAD   sp, [<stack_ptr>]
+    FLAGSJ r1, r2 } }
+

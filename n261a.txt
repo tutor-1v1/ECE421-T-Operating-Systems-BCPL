@@ -1,0 +1,79 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+/*
+   devctl(DC_TAPE_LOAD, unit#, "filename", 'R' or 'W')
+   devctl(DC_TAPE_READ, unit#, buffer)
+   devctl(DC_TAPE_WRITE, unit#, buffer, blocksizeinbytes)
+   devctl(DC_TAPE_UNLOAD, unit#)
+
+all return codes pos or zero = success
+negative is error message index
+for read, the result is size of block
+*/
+
+let buffer = vec(128);
+let pos = 0, buffmax = 0, ateof = false;
+
+let ropen(name) be
+{ let r = devctl(DC_TAPE_LOAD, 1, name, 'R');
+  if r < 0 then
+  { out("error %d loading tape %s\n", r, name);
+    finish }
+  pos := 0;
+  buffmax := 0;
+  ateof := false }
+
+let rclose() be
+{ let r = devctl(DC_TAPE_UNLOAD, 1);
+  if r < 0 then
+  { out("error %d unloading tape\n", r);
+    finish } }
+
+let rputback(c) be
+{ pos -:= 1;
+  byte pos of buffer := c }
+
+let eof() be
+  resultis ateof;
+
+let rchar() be
+{ let c;
+  if pos >= buffmax then
+  { let r = devctl(DC_TAPE_READ, 1, buffer);
+    if r < 0 then
+    { out("error %d reading a block\n", r);
+      finish }
+    pos := 0;
+    buffmax := r;
+    if r = 0 then
+    { ateof := true;
+      resultis -1 } }
+  c := byte pos of buffer;
+  pos +:= 1;
+  resultis c }
+
+let rnum() be
+{ let value = 0, c = rchar();
+  while c <= ' ' /\ c <> -1 do
+    c := rchar();
+  if c = -1 then
+    resultis 0;
+  while c >= '0' /\ c <= '9' do
+  { value := value * 10 + c - '0';
+    c := rchar() }
+  rputback(c);
+  resultis value }
+
+let start() be
+{ ropen("numbers.txt");
+  while true do
+  { let n = rnum();
+    if eof() then break;
+    out("The number is %d\n", n) }
+  rclose() }
+
+

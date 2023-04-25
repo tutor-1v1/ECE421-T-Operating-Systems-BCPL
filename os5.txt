@@ -1,0 +1,172 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+manifest
+{ iv_none = 0,        iv_memory = 1,      iv_pagefault = 2,   iv_unimpop = 3,
+  iv_halt = 4,        iv_divzero = 5,     iv_unwrop = 6,      iv_timer = 7,
+  iv_privop = 8,      iv_keybd = 9,       iv_badcall = 10,    iv_pagepriv = 11,
+  iv_debug = 12,      iv_intrfault = 13 }
+
+static { freepagelist = 0 }
+
+manifest
+{ freepagelist_ptr_addr = 0xC0000800,
+  freepagelist_number_addr = 0xC0000801,
+  pte_map_page_1_addr = 0xC0980002,
+  page_dir_va = 0xC0000000,
+  map_page_1 = 0xC0001000,
+  intvec = 0xC0000810,
+  cgbase = 0xC0000830,
+  next_free_in_attic = 0xC0000930,
+  page_address_only = bitnot 0x7FF }
+
+let get_page() be
+{ if ! freepagelist_number_addr = 0 then     
+  { outs("\nRun out of free pages\n");     
+    finish }
+  ! freepagelist_number_addr -:= 1;
+  resultis freepagelist ! ! freepagelist_number_addr }
+  
+let release_page(addr) be
+{ addr := addr bitand page_address_only;
+  freepagelist ! ! freepagelist_number_addr := addr;
+  ! freepagelist_number_addr +:= 1 }
+
+let pfhandler(a, addr, c) be
+{ let ptn = addr >> 22;
+  let pn = (addr >> 11) bitand 0x7FF;
+  let offs = addr bitand 0x7FF;
+  out("PAGE FAULT! addr = %x, %x/%x/%x\n", addr, ptn, pn, offs);
+  finish }
+
+let thandler() be
+{ out("TIMER!\n");
+  ireturn }
+
+let halthandler() be
+{ out("Process wants to exit\n");
+  ireturn }
+
+let sc1(code, regn, regv, pc, fp, sp, r12, r11, r10, r9, r8, r7, r6, r5, r4, r3, r2, r1, r0) be
+{ out("sc1(%d) %d %d %d %d\n", code, r1, r2, r3, r4);  // flags is before code
+  ireturn }
+
+let sc2(code, regn, regv, pc, fp, sp) be
+{ let nargs = (fp ! 2) / 2;
+  out("sc2(%d, %d, %d, %d)\n", fp!3, fp!4, fp!5, fp!6);
+  ireturn }
+
+let syscall_exit() be
+{ out("Process wants to exit\n");
+  ireturn }
+
+let print_mem_map() be
+{ let pdbr;
+  assembly
+  { getsr r1, $pdbr
+    store r1, [<pdbr>] }
+  out("00000000 to FFFFFFFF: PDBR = p%x, v%x\n", pdbr, page_dir_va);
+  for ptn = 1023 to 0 by -1 do               // page table number
+  { let pde = page_dir_va ! ptn;             // page directory entry
+    let pt = pde bitand page_address_only;   // page table's address
+    let ptrange = ptn << 22;                 // beginning of PT's VA range
+    if pde = 0 then loop;
+    out("   %08x to %08x: ", ptrange, ptrange + 0x3FFFFF);
+    if (pde bitand 1) = 0 then
+    { out("%08x - invalid\n", pde);
+      loop }
+    out("pp %d at %x\n", pde >> 11, pde >> 11 << 11);
+    ! pte_map_page_1_addr := pde;
+    for pn = 2047 to 0 by -1 do         // page number in table
+    { let pte = map_page_1 ! pn;        // page table entry
+      let range = ptrange + (pn << 11); // beginning of page's VA range
+      if pte = 0 then loop;
+      out("      %08x to %08x: ", range, range + 0x7FF);
+      if (pte bitand 1) = 0 then
+      { out("%08x - invalid\n", pte);
+        loop }
+      out("pp %d at %x\n", pte >> 11, pte >> 11 << 11) } } }
+
+let inlast = '\n';
+
+let newinput() be
+{ outs("> ");
+  inlast := 0; }
+
+let inchar() be
+{ if inlast <> 0 then
+  { let r = inlast;
+    inlast := 0;
+    resultis r; }
+  resultis inch(); }
+
+let inpart(s, max) be
+{ let c = inchar(), n = 0;
+  while true do
+  { if c = '\n' then
+    { inlast := '\n';
+      resultis nil; }
+    if c > ' ' then break;
+    c := inchar(); }
+  while true do
+  { if n < max then
+    { byte n of s := c;
+      n +:= 1 }
+    c := inchar();
+    if c <= ' ' then
+    { inlast := c;
+      break } }
+  byte n of s := 0;
+  resultis s }
+
+let streq(a, b) be
+{ let i = 0;
+  while true do
+  { let ca = byte i of a, cb = byte i of b;
+    if ca <> cb then resultis false;
+    if ca = 0 then resultis true;
+    i +:= 1 } }
+
+let start() be
+{ let x = 12;
+  let y = x*x;
+  let stack_ptr = 0x7FFFFFFF;
+  freepagelist := ! freepagelist_ptr_addr;
+  intvec ! iv_pagefault := pfhandler;
+  intvec ! iv_timer := thandler;
+  intvec ! iv_halt := halthandler;
+  cgbase ! 1 := sc1;
+  cgbase ! 2 := sc2;
+  cgbase ! 3 := syscall_exit;
+  out("I'm the operating system!\n");
+  out("  start = %x\n", start);
+  out("     @x = %x\n", @x);
+  out("      y = %d\n", y);
+  print_mem_map();
+  assembly
+  { loadh r1, 200
+    setsr r1, $timer
+    load  r1, 0
+    setfl r1, $ip }
+  while true do
+  { let s = vec(30);
+    newinput();
+    s := inpart(s, 119);
+    if s = nil then loop;
+    if streq(s, "exit") then
+      break;
+    if streq(s, "run") then
+    { assembly
+      { load  r2, [<stack_ptr>]
+        load  r1, 0
+        setfl r1, $ip
+        setfl r1, $sys
+        store r2, sp
+        store r1, fp
+        jump  0 } }
+    out("bad command '%s'\n", s) }
+  outs("all done\n") }
+

@@ -1,0 +1,128 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+let format() be
+{ out("format the disc\n") }
+
+let mount() be
+{ out("mount the disc\n") }
+
+let dismount() be
+{ out("dismount the disc\n") }
+
+let enter(name, blocknumber) be   // adds an entry to the directory
+{ out("add \"%s\" -> %d to the directory\n", name, blocknumber);
+  resultis -1 }
+
+let lookup(name) be   // searches directory, returns block number
+{ out("lookup \"%s\" in the directory\n", name);
+  resultis -1 }
+
+let print.dir() be
+{ out("list the directory\n") }
+
+let find.free.block() be
+{ out("find a free block\n");
+  resultis -1 }
+
+let write(name, contents) be   // contents is everything all in one string
+{ out("create file \"%s\" with given content\n", name);
+  resultis -1 }
+
+let read(name, buffer) be   // read entire contents into buffer
+{ out("read file \"%s\" into buffer\n");
+  resultis -1 }
+
+let read.line(string, size) be
+{ let length = 0;
+  size -:= 1;
+  while true do
+  { let c;
+    if length = size then
+    { byte length of string := 0;
+      resultis length; }
+    c := inch();
+    if c = '\n' then
+    { byte length of string := 0;
+      resultis length; }
+    byte length of string := c;
+    length +:= 1; } }
+
+let read.lines(string, size) be
+{ let length = 0, last.was.newline = false, maybe.ending = false;
+  size -:= 1;
+  while true do
+  { let c;
+    if length = size then
+    { byte length of string := 0;
+      resultis length; }
+    c := inch();
+    if maybe.ending /\ c = '\n' then
+    { byte length - 1 of string := 0;
+      resultis length }
+    maybe.ending := last.was.newline /\ c = '*';
+    last.was.newline := c = '\n';
+    byte length of string := c;
+    length +:= 1; } }
+
+let equals(s, t) be
+{ let i = 0;
+  while byte i of s = byte i of t do
+  { if byte i of s = 0 then
+      resultis true;
+    i +:= 1 }
+  resultis false }
+
+let start() be
+{ let buffer = vec(129);
+  while true do
+  { out("> ");
+    read.line(buffer, 512);
+    if byte 0 of buffer = 0 then
+      loop;
+    if buffer %equals "exit" then
+      finish;
+    test buffer %equals "format" then
+      format()
+    else test buffer %equals "mount" then
+      mount()
+    else test buffer %equals "dismount" then
+      dismount()
+    else test buffer %equals "findfree" then
+      out("found free block %d\n", find.free.block())
+    else test buffer %equals "enter" then
+    { let n;
+      out("file name: ");
+      read.line(buffer, 512);
+      out("block number: ");
+      n := inno();
+      enter(buffer, n) }
+    else test buffer %equals "lookup" then
+    { let n;
+      out("file name: ");
+      read.line(buffer, 512);
+      n := lookup(buffer);
+      out("block number = %d\n", n) }
+    else test buffer %equals "ls" then
+      print.dir()
+    else test buffer %equals "write" then
+    { let content = vec(129);
+      out("file name: ");
+      read.line(buffer, 512);
+      out("content (lone * at end):\n");
+      read.lines(content, 512);
+      write(buffer, content) }
+    else test buffer %equals "read" then
+    { let content = vec(129);
+      out("file name: ");
+      read.line(buffer, 512);
+      read(buffer, content);
+      out("content = \"%s\"\n", content) }
+    else test buffer %equals "help" then
+      out("exit format mount dismount findfree enter lookup write read help\n")
+    else
+      out("bad command \"%s\"\n", buffer) } }
+

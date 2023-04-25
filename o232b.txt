@@ -1,0 +1,37 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+ 
+let open(fname, mode) be
+{ let pos = 0, type = 'd', name = vec(25), i;
+  if byte pos of fname = '/' then
+    pos +:= 1;
+  if byte pos + 1 of fname = '/' then
+  { type := byte pos of fname;
+    pos +:= 2 }
+  if type = 'k' \/ type = 'm' then          // k=keyboard, m=monitor
+    resultis tty;
+  i := 0;
+  while true do
+  { let c = byte pos of fname;
+    byte i of name := c;
+    if c = 0 then
+      break;
+    pos +:= 1;
+    i +:= 1 }
+  if type = 't' then                        // t=tape
+  { if mode = 'r' then
+      resultis tape_open_r(name);
+    if mode = 'w' then
+      resultis tape_open_w(name);
+    resultis -1 }
+  if type = 'd' then                        // d=disc
+  { if mode = 'r' then
+      resultis disc_open_r(name);
+    if mode = 'w' then
+      resultis disc_open_w(name);
+    resultis -1 }
+  resultis -1 }
+
+

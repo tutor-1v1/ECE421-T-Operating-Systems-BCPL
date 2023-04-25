@@ -1,0 +1,258 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+import "iosb"
+
+/*
+  iosb's exports are:
+
+  export { format_disc, mount_disc, dismount_disc, decode_filename,
+           open, tape_open_w, tape_open_r, disc_open_w, disc_open_r, disc_open_a,
+           close, close_writetape, close_readtape, close_writedisc, close_readdisc,
+           readch, readno, read_line, writech, writeno, writestr, at_eof,
+           read_next_block, write_next_block,
+           print_dir, chmod, delete, stat, 
+           find_free_block, make_block_free,
+           tty, superblock,
+           perm_write, perm_del, perm_exec,
+           sb_rootdir, sb_freelist_start, sb_freelist_end, sb_freelist_num,
+           sb_freelist_pos_ondisc, sb_freelist_pos_inwindow, sb_last_used,
+           stat_hdrblknum, stat_modtime, stat_permission, stat_length, sizeof_stat }
+*/
+
+/* These are part of the iosb library, but their source code
+   is included here in case it is of use to you
+
+let decode_filename(fname, name) be
+{ let pos = 0, type = 'd', i;
+  if byte pos of fname = '/' then
+    pos +:= 1;
+  if byte pos + 1 of fname = '/' then
+  { type := byte pos of fname;
+    pos +:= 2 }
+  i := 0;
+  while true do
+  { let c = byte pos of fname;
+    byte i of name := c;
+    if c = 0 then
+      break;
+    pos +:= 1;
+    i +:= 1 }
+  resultis type }
+
+let open(fname, mode) be
+{ let name = vec(25);
+  let type = decode_filename(fname, name);
+  if type = 'k' \/ type = 'm' then
+    resultis tty;
+  if type = 't' then
+  { if mode = 'r' then
+      resultis tape_open_r(name);
+    if mode = 'w' then
+      resultis tape_open_w(name);
+    resultis -1 }
+  if type = 'd' then
+  { if mode = 'r' then
+      resultis disc_open_r(name);
+    if mode = 'w' then
+      resultis disc_open_w(name);
+    if mode = 'a' then
+      resultis disc_open_a(name);
+    resultis -1 }
+  resultis -1 }
+*/
+
+let stat_command(fname) be
+{ let r, blkptrs = vec(128), info = vec(sizeof_stat), v = vec(7), p, tape = false;
+  if byte 0 of fname = '/' /\ byte 1 of fname = 't' /\ byte 2 of fname = '/' then
+    tape := true;
+  r := stat(fname, info, blkptrs);
+  if r < 0 then
+  { out("file %s not found\n", fname);
+    resultis -1 }
+  test tape then
+    out("length: %d\n", info ! stat_length)
+  else
+  { out("header %d\n", info ! stat_hdrblknum);
+    datetime(info ! stat_modtime, v);
+    out("modtime: %04d-%02d-%02d %02d:%02d:%02d\n",
+            v ! 0, v ! 1, v ! 2, v ! 4, v ! 5, v ! 6);
+    p := info ! stat_permission;
+    out("permission: ");
+    test p bitand perm_del then outch('d') else outch('-');
+    test p bitand perm_write then outch('w') else outch('-');
+    test p bitand perm_exec then outch('x') else outch('-');
+    outch('\n');
+    out("length: %d\n", info ! stat_length);
+    out("data:");
+    for i = 0 to 127 do
+    { if blkptrs ! i = 0 then
+        break;
+      out(" %d", blkptrs ! i) }
+    outch('\n') } }
+
+let equals(s, t) be
+{ let i = 0;
+  while byte i of s = byte i of t do
+  { if byte i of s = 0 then
+      resultis true;
+    i +:= 1 }
+  resultis false }
+
+let start() be
+{ let r, s = vec(30), fn = vec(30), name = vec(30);
+  init(!0x101, !0x100 - !0x101);
+  while true do
+  { outs("\n> ");
+    read_line(tty, s, 119);
+
+    test s %equals "format" then
+      format_disc()
+
+    else test s %equals "mount" then
+      mount_disc()
+
+    else test s %equals "dismount" then
+      dismount_disc()
+
+    else test s %equals "exit" then
+      break
+
+    else test s %equals "cftable" then
+    { let fo, min, max;
+      out("file name: ");
+      read_line(tty, fn, 39);
+      out("start: ");
+      min := readno(tty);
+      out("end: ");
+      max := readno(tty);
+      fo := open(fn, 'w');
+      if fo < 0 then
+        loop;
+      for cent = min to max do
+      { let fahr = cent * 9 / 5 + 32;
+        writeno(fo, cent);
+        writestr(fo, " centigrade is ");
+        writeno(fo, fahr);
+        writestr(fo, " fahrenheit\n") }
+      close(fo); }
+
+    else test s %equals "copy" \/ s %equals "append" then
+    { let fi, fo, mode = 'w';
+      if byte 0 of s = 'a' then
+        mode := 'a';
+      out("from: ");
+      read_line(tty, fn, 119);
+      fi := open(fn, 'r');
+      if fi < 0 then
+        loop;
+      out("to: ");
+      read_line(tty, fn, 119);
+      fo := open(fn, mode);
+      if fo < 0 then
+      { close(fi);
+        loop }
+      if fi = tty then
+        outs("control-E to end:\n");
+      while true do
+      { let c = readch(fi);
+        if at_eof(fi) then
+          break;
+        if fi = tty /\ c = 5 then
+        { c := readch(fi) repeatuntil c = '\n';
+          break }
+        writech(fo, c) }
+      close(fi);
+      close(fo) }
+
+    else test s %equals "bft" then
+    { let fi, fo, buff = vec(128);
+      out("from: ");
+      read_line(tty, fn, 119);
+      fi := open(fn, 'r');
+      if fi < 0 then
+        loop;
+      out("to: ");
+      read_line(tty, fn, 119);
+      fo := open(fn, 'w');
+      if fo < 0 then
+      { close(fi);
+        loop }
+      while true do
+      { let r = read_next_block(fi, buff);
+        if r <= 0 then
+          break;
+        r := write_next_block(fo, buff, r);
+        if r < 0 then
+          break }
+      close(fi);
+      close(fo) }
+
+    else test s %equals "ls" then
+      print_dir()
+
+    else test s %equals "stat" then
+    { out("file name: ");
+      read_line(tty, fn, 119);
+      stat_command(fn) }
+
+    else test s %equals "chmod" then
+    { let prot = vec(10), type, r;
+      out("file name: ");
+      read_line(tty, fn, 119);
+      type := decode_filename(fn, name);
+      if type <> 'd' then
+      { outs("chmod only applies to disc files\n");
+        loop }
+      out("protection: ");
+      read_line(tty, prot, 119);
+      r := chmod(name, prot);
+      if r < 0 then
+        outs("chmod failed\n") }
+
+    else test s %equals "rm" then
+    { let type;
+      out("file name: ");
+      read_line(tty, fn, 39);
+      type := decode_filename(fn, name);
+      if type <> 'd' then
+      { outs("rm only applies to disc files\n");
+        loop }
+      delete(name) }
+
+    else test s %equals "len" then
+    { let r, info = vec(sizeof_stat);
+      out("file name: ");
+      read_line(tty, fn, 39);
+      r := stat(fn, info, nil);
+      if r < 0 then
+      { outs("stat failed\n");
+        loop }
+      out("length = %d bytes\n", info ! stat_length) }
+
+    else test s %equals "free" then
+    { let b = vec(16);
+      out("The next 16 free blocks are:");
+      for i = 0 to 15 do
+      { b ! i := find_free_block();
+        out(" %d", b ! i) }
+      outch('\n');
+      for i = 0 to 15 do
+        make_block_free(b ! i) }
+
+    else test s %equals "info" then
+    { out("rootdir = %d\n", superblock ! sb_rootdir);
+      out("freelist_start = %d\n", superblock ! sb_freelist_start);
+      out("freelist_end = %d\n", superblock ! sb_freelist_end);
+      out("freelist_num = %d\n", superblock ! sb_freelist_num);
+      out("freelist_pos_ondisc = %d\n", superblock ! sb_freelist_pos_ondisc);
+      out("freelist_pos_inwindow = %d\n", superblock ! sb_freelist_pos_inwindow); }
+
+    else test s %equals "help" then
+      out("format mount dismount exit cftable copy append ls chmod stat free rm info bft len\n")
+
+    else
+      outs("unrecognised command\n") } }
+

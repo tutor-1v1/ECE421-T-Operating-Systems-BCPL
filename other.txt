@@ -1,0 +1,19 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+export { pi, f }
+
+let pi = 0
+
+let f(x) be
+  resultis x
+
+let pre_start() be
+{ out("other's pre_start\n");
+  pi := 3.14; }
+
+
+

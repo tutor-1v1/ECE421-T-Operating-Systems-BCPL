@@ -1,0 +1,193 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+manifest
+{ iosb_ichar = 0;
+  iosb_ochar = 1;
+  iosb_close = 2;
+  iosb_unit = 3;
+  iosb_buffer = 4;
+  iosb_pos = 5;
+  iosb_size = 6;
+  sizeof_iosb = 7 }
+
+let readch_tty(iosb) be
+{ resultis inch() }
+
+let writech_tty(iosb, c) be
+{ outch(c) }
+
+let close_tty(iosb) be
+{ }
+
+let tty = table readch_tty, writech_tty, close_tty, 0, 0, 0, 0;
+
+let tapes = table 1, 0, 0, 0, 0, 0, 0, 0, 0;
+
+let find_free_tape_unit() be
+{ for i = 1 to 8 do
+    if tapes ! i = 0 then
+    { tapes ! i := 1;
+      resultis i }
+  out("All tape drives are in use\n");
+  finish }
+
+let close_writetape(iosb) be
+{ let r;
+  if iosb ! iosb_pos /= 0 then
+  { let r = devctl(DC_TAPE_WRITE,
+                   iosb ! iosb_unit, 
+                   iosb ! iosb_buffer, 
+                   iosb ! iosb_pos);
+    if r < 0 then
+    { out("code %d from tape write\n", r);
+      finish } }
+  r := devctl(DC_TAPE_UNLOAD, iosb ! iosb_unit);
+  if r < 0 then
+  { out("code %d from tape unload\n", r);
+    finish }
+  tapes ! (iosb ! iosb_unit) := 0;
+  freevec(iosb ! iosb_buffer);
+  freevec(iosb) }
+
+let close_readtape(iosb) be
+{ let r = devctl(DC_TAPE_UNLOAD, iosb ! iosb_unit);
+  if r < 0 then
+  { out("code %d from tape unload\n", r);
+    finish }
+  tapes ! (iosb ! iosb_unit) := 0;
+  freevec(iosb ! iosb_buffer);
+  freevec(iosb) }
+
+let writechar_tape(iosb, ch) be
+{ if iosb ! iosb_pos = iosb ! iosb_size then
+  { let r = devctl(DC_TAPE_WRITE,
+                   iosb ! iosb_unit, 
+                   iosb ! iosb_buffer,
+                   iosb ! iosb_size);
+    if r < 0 then
+    { out("code %d from tape write\n", r);
+      finish }
+    iosb ! iosb_pos := 0 }
+  byte (iosb ! iosb_pos) of (iosb ! iosb_buffer) := ch;
+  iosb ! iosb_pos +:= 1 }
+
+let readchar_tape(iosb) be
+{ let c;
+  if iosb ! iosb_pos >= iosb ! iosb_size then
+  { let r = devctl(DC_TAPE_READ,
+                   iosb ! iosb_unit, 
+                   iosb ! iosb_buffer);
+    if r < 0 then
+    { out("code %d from tape read\n", r);
+      finish }
+    iosb ! iosb_pos := 0;
+    iosb ! iosb_size := r }
+  if iosb ! iosb_pos = iosb ! iosb_size then
+  { iosb ! iosb_size := -1;
+    resultis -1; }
+  c := byte (iosb ! iosb_pos) of (iosb ! iosb_buffer);
+  iosb ! iosb_pos +:= 1;
+  resultis c }
+
+let illegal_writech(iosb, ch) be
+{ out("Write performed on read-only file\n");
+  finish }
+
+let illegal_readch(iosb) be
+{ out("Read performed on write-only file\n");
+  finish }
+
+let at_eof(iosb) be
+{ resultis iosb ! iosb_size = -1 }
+
+let tape_open_w(fname) be
+{ let t = find_free_tape_unit();
+  let r = devctl(DC_TAPE_LOAD, t, fname, 'W');
+  if r < 0 then
+  { out("code %d from tape load\n", r);
+    finish }
+  r := newvec(sizeof_iosb);
+  r ! iosb_ichar := illegal_readch;
+  r ! iosb_ochar := writechar_tape;
+  r ! iosb_close := close_writetape;
+  r ! iosb_unit := t;
+  r ! iosb_buffer := newvec(128);
+  r ! iosb_pos := 0;
+  r ! iosb_size := 512;
+  resultis r; }
+
+let tape_open_r(fname) be
+{ let t = find_free_tape_unit();
+  let r = devctl(DC_TAPE_LOAD, t, fname, 'R');
+  if r < 0 then
+  { out("code %d from tape load\n", r);
+    finish }
+  r := newvec(sizeof_iosb);
+  r ! iosb_ichar := readchar_tape;
+  r ! iosb_ochar := illegal_writech;
+  r ! iosb_close := close_readtape;
+  r ! iosb_unit := t;
+  r ! iosb_buffer := newvec(128);
+  r ! iosb_pos := 512;
+  r ! iosb_size := 512;
+  resultis r; }
+
+let writech(iosb, ch) be
+{ (iosb ! iosb_ochar)(iosb, ch) }
+
+let readch(iosb) be
+{ resultis (iosb ! iosb_ichar)(iosb) }
+
+let close(iosb) be
+{ (iosb ! iosb_close)(iosb) }
+
+let writestr(iosb, s) be
+{ let i = 0;
+  while true do
+  { let c = byte i of s;
+    if c = 0 then break;
+    writech(iosb, c);
+    i +:= 1 } }
+
+let writeno(iosb, n) be
+{ if n < 0 then
+  { writech(iosb, '-');
+    n := -n }
+  if n > 9 then
+    writeno(iosb, n / 10);
+  writech(iosb, '0' + n rem 10) }
+
+let readno(iosb) be
+{ let n = 0, c = readch(iosb), s = 1;
+  while c < ' ' do
+    c:=readch(iosb);
+  if c = '-' then
+  { s := -1;
+    c := readch(iosb) }
+  while c >= '0' /\ c <= '9' do
+  { n := n * 10 + c - '0'; 
+    c := readch(iosb) }
+  resultis n * s }
+
+let start() be
+{ let fi, fo, min, max;
+  init(!0x101, !0x100 - !0x101);
+  writestr(tty, "The program is creating table.txt\n");
+  fi := tape_open_r("limits.txt");
+  fo := tape_open_w("table.txt");
+  min := readno(fi);
+  max := readno(fi);
+  for cent = min to max do
+  { let fahr = cent * 9 / 5 + 32;
+    writeno(fo, cent);
+    writestr(fo, " centigrade is ");
+    writeno(fo, fahr);
+    writestr(fo, " fahrenheit\n") }
+  close(fi);
+  close(fo) }
+
+

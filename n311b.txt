@@ -1,0 +1,222 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+manifest
+{ sb.rootdir = 0;
+  sb.firstfree = 1 }
+
+let superblock = vec(128);
+let rootdir = vec(128);
+
+let strncpy(dest, src, max) be
+{ let i = 0, ended = false;
+  while i <= max do
+  { test ended then
+      byte i of dest := 0
+    else
+    { let c = byte i of src;
+      byte i of dest := c;
+      if c = 0 then
+        ended := true }
+    i +:= 1 } }
+
+let strncmp(a, b, max) be
+{ for i = 0 to max do
+  { if byte i of a <> byte i of b then
+      resultis false;
+    if byte i of a = 0 then
+      resultis true }
+  resultis true }
+
+let outsn(s, max) be
+  for i = 0 to max do
+    test byte i of s = 0 then
+      return
+    else
+      outch(byte i of s)
+
+let format() be
+{ let b = vec(128), r;
+  out("format the disc\n");
+  for i = 0 to 127 do
+    b ! i := 0;
+  b ! sb.rootdir := 1;
+  b ! sb.firstfree := 2;
+  r := devctl(DC_DISC_WRITE, 1, 0, 1, b);
+  if r < 0 then
+    out("error %d from format/1\n", r);
+  b ! sb.rootdir := 0;
+  b ! sb.firstfree := 0;
+  r := devctl(DC_DISC_WRITE, 1, 1, 1, b);
+  if r < 0 then
+    out("error %d from format/2\n", r) }
+
+let mount() be
+{ let r;
+  out("mount the disc\n");
+  r := devctl(DC_DISC_READ, 1, 0, 1, superblock);
+  if r < 0 then
+    out("error %d from mount/1\n", r);
+  r := devctl(DC_DISC_READ, 1, superblock ! sb.rootdir, 1, rootdir);
+  if r < 0 then
+    out("error %d from mount/1\n", r) }
+
+let dismount() be
+{ let r;
+  out("dismount the disc\n");
+  r := devctl(DC_DISC_WRITE, 1, 0, 1, superblock);
+  if r < 0 then
+    out("error %d from dismount/1\n", r);
+  r := devctl(DC_DISC_WRITE, 1, superblock ! sb.rootdir, 1, rootdir);
+  if r < 0 then
+    out("error %d from dismount/2\n", r) }
+
+let enter(name, blocknumber) be   // adds an entry to the directory
+{ out("add \"%s\" -> %d to the directory\n", name, blocknumber);
+  for ptr = 0 to 511 by 16 do
+    if rootdir ! ptr = 0 then
+    { strncpy(rootdir + ptr, name, 7);
+      rootdir ! (ptr + 2) := seconds();
+      rootdir ! (ptr + 3) := blocknumber;
+      resultis ptr }
+  resultis -1 }
+
+let lookup(name) be   // searches directory, returns block number
+{ out("lookup \"%s\" in the directory\n", name);
+  for ptr = 0 to 511 by 16 do
+    if rootdir ! ptr <> 0 then
+      if strncmp(name, rootdir + ptr, 7) then
+        resultis rootdir ! (ptr + 3);
+  resultis -1 }
+
+let remove(name) be   // remove a directory entry
+{ out("remove \"%s\" from the directory\n", name);
+  for ptr = 0 to 511 by 16 do
+    if rootdir ! ptr <> 0 then
+      if strncmp(name, rootdir + ptr, 7) then
+      { rootdir ! ptr := 0;
+        rootdir ! (ptr + 1) := 0;
+        rootdir ! (ptr + 2) := 0;
+        rootdir ! (ptr + 3) := 0;
+        resultis 1 }
+  resultis -1 }
+
+let print.dir() be
+{ let v = vec(7);
+  out("list the directory\n");
+  datetime(seconds(), v);
+  outsn("filename");
+  out(", %04d-%02d-%02d %02d:%02d:%02d, block %d\n", v ! 0, v ! 1, v ! 2, v ! 4, v ! 5, v ! 6, 999) }
+
+let find.free.block() be
+{ out("find a free block\n");
+  resultis -1 }
+
+let write(name, contents) be   // contents is everything all in one string
+{ out("create file \"%s\" with given content\n", name);
+  resultis -1 }
+
+let read(name, buffer) be   // read entire contents into buffer
+{ out("read file \"%s\" into buffer\n");
+  resultis -1 }
+
+let read.line(string, size) be
+{ let length = 0;
+  size -:= 1;
+  while true do
+  { let c;
+    if length = size then
+    { byte length of string := 0;
+      resultis length; }
+    c := inch();
+    if c = '\n' then
+    { byte length of string := 0;
+      resultis length; }
+    byte length of string := c;
+    length +:= 1; } }
+
+let read.lines(string, size) be
+{ let length = 0, last.was.newline = false, maybe.ending = false;
+  size -:= 1;
+  while true do
+  { let c;
+    if length = size then
+    { byte length of string := 0;
+      resultis length; }
+    c := inch();
+    if maybe.ending /\ c = '\n' then
+    { byte length - 1 of string := 0;
+      resultis length }
+    maybe.ending := last.was.newline /\ c = '*';
+    last.was.newline := c = '\n';
+    byte length of string := c;
+    length +:= 1; } }
+
+let equals(s, t) be
+{ let i = 0;
+  while byte i of s = byte i of t do
+  { if byte i of s = 0 then
+      resultis true;
+    i +:= 1 }
+  resultis false }
+
+let start() be
+{ let buffer = vec(129);
+  while true do
+  { out("> ");
+    read.line(buffer, 512);
+    if byte 0 of buffer = 0 then
+      loop;
+    if buffer %equals "exit" then
+      finish;
+    test buffer %equals "format" then
+      format()
+    else test buffer %equals "mount" then
+      mount()
+    else test buffer %equals "dismount" then
+      dismount()
+    else test buffer %equals "findfree" then
+      out("found free block %d\n", find.free.block())
+    else test buffer %equals "enter" then
+    { let n, r;
+      out("file name: ");
+      read.line(buffer, 512);
+      out("block number: ");
+      n := inno();
+      r := enter(buffer, n);
+      out("returned %d\n", r) }
+    else test buffer %equals "lookup" then
+    { let n;
+      out("file name: ");
+      read.line(buffer, 512);
+      n := lookup(buffer);
+      out("block number = %d\n", n) }
+    else test buffer %equals "rm" then
+    { let r;
+      out("file name: ");
+      read.line(buffer, 512);
+      r := remove(buffer);
+      out("returned %d\n", r) }
+    else test buffer %equals "ls" then
+      print.dir()
+    else test buffer %equals "write" then
+    { let content = vec(129);
+      out("file name: ");
+      read.line(buffer, 512);
+      out("content (lone * at end):\n");
+      read.lines(content, 512);
+      write(buffer, content) }
+    else test buffer %equals "read" then
+    { let content = vec(129);
+      out("file name: ");
+      read.line(buffer, 512);
+      read(buffer, content);
+      out("content = \"%s\"\n", content) }
+    else test buffer %equals "help" then
+      out("exit format mount dismount findfree enter lookup rm ls write read help\n")
+    else
+      out("bad command \"%s\"\n", buffer) } }
+

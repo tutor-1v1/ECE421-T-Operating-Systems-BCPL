@@ -1,0 +1,65 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+
+Make everything work together.
+
+For this, you need to bring together assignment number 3 (a level-1 index
+filesystem) and number 5 (making your own heap). Keep those two components
+as separate libraries that your main program imports. We don't want your
+files getting too big to read. If you make any changes to those two components
+after receiving a grade for them, you must point out those changes to me at
+the top of the document that you submit. I do not want to waste time regrading
+something that hasn't changed.
+
+Remember that if you haven't got assignments 3 and/or 5 working, you can
+import "*heap" and/or "*iosb" to access my reference implementations. But
+be aware that still not having those assiognments working is not a good
+thing at all.
+
+Your file system should make use of the new heap library and not use the
+init, newvec and freevec from "io".
+
+Your main program must be interactive, obeying commands typed by the user.
+
+It must incorporate three types of commands:
+
+  1. Something that allows complete and thorough testing of the heap, in
+     the style of this http://rabbit.eng.miami.edu/class/een421/n272a.txt
+     from class 13.
+
+  2. Something that allows complete and thorough testing of the filesystem,
+     in the style of this http://rabbit.eng.miami.edu/class/een421/iosbtest.txt
+     You should definitely make use of something like the decode_filename
+     and open functions that it contains, so that tape files, disc files, 
+     the keyboard, and your screen are all accessed in exactly the same way.
+
+  3. Also add a "run" command. "run filename" should somehow read the named
+     file from your disc system, load it somewhere in memory, and run it. Of 
+     course, you will have previously copied a normally compiled bcpl program
+     from your unix directory into your filesystem. After the program's run is
+     over, your interactive command loop must be able to take over again and
+     continue running. For this to happen, you will have to do one small thing
+     after loading the program:
+        If you look at the beginning of any .ass file, you will see that they
+     always start with the same six instructions: "call f_fixes" sets up any
+     complex global variables, "push, push, call" to call start as a normal
+     function, "add sp, 2" to remove start's parameters from the stack, and
+     finally "halt" to stop everything. That halt will prevent your interactive
+     system from continuing. So replace the sixth word's HALT (0x00000000)
+     with a RET (0x4A000000), and transfer control to the loaded program with
+     a CALL instead of a JUMP instruction.
+
+Your test runs must be thorough, testing every important facility. You need
+to show that big disc files really do work properly, and that neightbouring
+free chunks of different sizes do get merged properly. When you submit your
+word document, if it does contain a print-out of a very long file, edit that
+part of it so that only the first and last few lines are shown, and there is
+a ... or something where the other lines used to be. Otherwise your documents
+will be too long to handle.
+
+Remember to put your name, and the path to your files in your unix account at
+the top of the document.
+
+

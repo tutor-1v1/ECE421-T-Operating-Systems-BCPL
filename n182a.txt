@@ -1,0 +1,74 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+/*
+   devctl(DC_TAPE_LOAD, unit#, "filename", 'R' or 'W')
+   devctl(DC_TAPE_READ, unit#, buffer)
+   devctl(DC_TAPE_WRITE, unit#, buffer, blocksizeinbytes)
+   devctl(DC_TAPE_UNLOAD, unit#)
+
+all return codes pos or zero = success
+negative is error message index
+for read, the result is size of block
+*/
+
+let buffer = vec(128);
+let pos = 0;
+
+let wopen(fname) be
+{ let r = devctl(DC_TAPE_LOAD, 1, fname, 'W');
+  if r < 0 then
+  { out("code %d from tape load\n", r);
+    finish }
+  pos := 0 }
+
+let wclose() be
+{ let r;
+  if pos /= 0 then
+  { let r = devctl(DC_TAPE_WRITE, 1, buffer, pos);
+    if r < 0 then
+    { out("code %d from tape write\n", r);
+      finish } }
+  r := devctl(DC_TAPE_UNLOAD, 1);
+  if r < 0 then
+  { out("code %d from tape unload\n", r);
+    finish } }
+
+let wchar(c) be
+{ if pos = 512 then
+  { let r = devctl(DC_TAPE_WRITE, 1, buffer, 512);
+    if r < 0 then
+    { out("code %d from tape write\n", r);
+      finish }
+    pos := 0 }
+  byte pos of buffer := c;
+  pos +:= 1 }
+
+let wstring(s) be
+{ let i = 0;
+  while true do
+  { let c = byte i of s;
+    if c = 0 then break;
+    wchar(c);
+    i +:= 1 } }
+
+let wnum(n) be
+{ if n > 9 then
+    wnum(n / 10);
+  wchar('0' + n rem 10) }
+
+let start() be
+{ wopen("table.txt");
+  for c = 0 to 100 do
+  { let f = c * 9 / 5 + 32;
+    wnum(c);
+    wstring(" centigrade is ");
+    wnum(f);
+    wstring(" fahrenheit\n") }
+  wclose() }
+
+
+

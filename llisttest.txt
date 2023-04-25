@@ -1,0 +1,32 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+import "*llist"
+
+/*
+  llist's exports are:
+
+  export
+  { new_list, add_to_front, add_to_end, print, strcmp, remove, strdup, read_string, print_with_addresses }
+*/
+
+let start() be
+{ let s = vec(100), list;
+  init(!0x101, !0x100 - !0x101);
+  list := new_list();
+  while true do
+  { outs("> ");
+    read_string(s, 100);
+    test strcmp(s, "END") = 0 then
+      finish
+    else test strcmp(s, "ALL") = 0 then
+      print_with_addresses(list)
+    else test strcmp(s, "DELETE") = 0 then
+    { read_string(s, 100);
+      remove(list, s) }
+    else
+    { let perm = strdup(s);
+      add_to_end(list, perm) } } }
+

@@ -1,0 +1,17 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+
+For extra credit only. Quite tricky.
+
+This is an extension to assignment 7.
+
+Add virtual memory to assignment 7. Everything should run with virtual memory
+active. The original program should be translated to higher addresses (at or
+above 0x80000000 like in class), and the programs that execute in response to
+a "run" command should live at low addresses and run in USER mode. You will 
+need two different stacks of course (user and system), and your program will
+need to handle page faults at least.
+
+

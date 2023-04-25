@@ -1,0 +1,39 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io";
+
+let g = 111, h = 222;
+
+let f(n) be
+{ let x=5, y=6;
+  out("\nf(%d):\n", n);
+  out("  address of x is 0x%x\n", @x );
+  out("  address of y is 0x%x\n", @y ) }
+
+let r(n, m) be  
+{ let a=1, b=2, c=3;
+  out("\nr(%d, %d):\n", n, m);
+  out("  address of n is 0x%x\n", @n );
+  out("  address of m is 0x%x\n", @m );
+  out("  address of a is 0x%x\n", @a );
+  out("  address of b is 0x%x\n", @b );
+  out("  address of c is 0x%x\n", @c );
+  test n > 0 then
+    r(n - 1, m * 10)  
+  else
+    f(1) }
+
+let start() be
+{ let a = 77, b = 44;
+  out("  address of a is 0x%x\n", @a );
+  out("  address of b is 0x%x\n", @b );
+  out("  address of g is 0x%x\n", @g );
+  out("  address of h is 0x%x\n", @h );
+  out("  address of f is 0x%x\n", f );
+  out("  address of r is 0x%x\n", r );
+  r(4, 7);  
+  f(2) }
+
+

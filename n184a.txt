@@ -1,0 +1,24 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+manifest
+{ link_data = 0,
+  link_next = 1,
+  sizeof_link = 2 }
+
+let start() be
+{ let head = nil, otherlist = nil;
+
+  // lots of stuff, but I never actually added anything to head
+
+  head ! link_data := 9876;
+  head ! link_next := otherlist;
+
+  // a bit later
+
+  out("data is %d, next is %08x\n", head ! link_data, head ! link_next) }
+
+

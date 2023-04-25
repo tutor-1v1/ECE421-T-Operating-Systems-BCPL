@@ -1,0 +1,98 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+
+-------
+arith.b
+-------
+
+import "io";
+
+let start() be
+{ let a, b, c;
+  a := 2 * 3 + 4;
+  b := 2 * 3 + 4 * 5;
+  c := 2 * 3 + (4 + 5) * (6 + 7) }
+
+
+---------
+arith.ass
+---------
+
+     call  f_fixes
+     push  0
+     call  g_start
+     add   SP, 1
+     halt
+  .import g_library_inch
+  .import g_set_kb_buffer
+  .import g_random
+  .import g_strlen
+  .import g_devctlv
+  .import g_devctl
+  .import g_datetime2
+  .import g_datetime
+  .import g_seconds
+  .import g_sleep
+  .import t_11_freevec
+  .import t_10_newvec
+  .import t_12_init
+  .import g_returnto
+  .import g_thiscall
+  .import g_lhs
+  .import g_numbargs
+  .import g_inno
+  .import t_5_inch
+  .import g_out
+  .import g_outs
+  .import g_outf
+  .import g_outbin
+  .import g_outhex
+  .import g_outno
+  .import g_outch
+  .link "/usr/local/bin/io"
+
+                     // Line 3, the function start
+g_start:
+     push  FP
+     load  FP, SP
+     sub   SP, 3
+                         // a is local 1, FP-1
+                         // b is local 2, FP-2
+                         // c is local 3, FP-3
+                // Line 5, assignment/assign a
+     load  R1, 2
+     mul   R1, 3
+     add   R1, 4
+     store R1, [FP-1]
+                // Line 6, assignment/assign b
+     load  R1, 2
+     mul   R1, 3
+     load  R2, 4
+     mul   R2, 5
+     add   R1, R2
+     store R1, [FP-2]
+                // Line 7, assignment/assign c
+     load  R1, 2
+     mul   R1, 3
+     load  R2, 4
+     add   R2, 5
+     load  R3, 6
+     add   R3, 7
+     mul   R2, R3
+     add   R1, R2
+     store R1, [FP-3]
+L1:
+     load  SP, FP
+     pop   FP
+     ret
+
+
+  .export g_start
+
+f_fixes:
+     ret   R8, 0xBEEF
+
+
+

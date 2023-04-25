@@ -1,0 +1,80 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+	
+
+	IV$NONE		= 0:	(not a real interrupt code)
+ 	IV$MEMORY	= 1:	Physical memory access failed
+  	IV$PAGEFAULT	= 2: 	Page fault
+ 	IV$UNIMPOP	= 3: 	Unimplemented operation code (i.e. instruction opcode wrong)
+ 	IV$HALT		= 4: 	HALT instruction executed
+ 	IV$DIVZERO	= 5: 	Division by zero
+   	IV$UNWROP	= 6: 	Unwritable instruction operand  (e.g.  INC 72)
+   	IV$TIMER	= 7: 	Countdown timer reached zero
+   	IV$PRIVOP	= 8: 	Privileged operation attempted by user mode program
+  	IV$KEYBD	= 9: 	at least one keyboard character typed and ready
+    	IV$BADCALL	= 10:	Bad SYSCALL index  (i.e. <0 or >=$CGLEN)
+   	IV$PAGEPRIV	= 11: 	User mode access to system mode page
+    	IV$DEBUG	= 12: 	PC=$DEBUG trap
+   	IV$INTRFAULT	= 13: 	Failure to process interrupt.
+
+
+ACTIONS AUTOMATICALLY PERFORMED WHEN AN INTERRUPT OCCURS, IF IP FLAG IS 0.
+
+		oldflags  = FLAGS register
+		flag SYS turned on.  (i.e. now using system SP and system stack)
+		flag IP turned on.
+		PUSH R0
+		PUSH R1
+		...
+		...
+		PUSH R11
+		PUSH R12
+		PUSH SP
+		PUSH FP
+		PUSH PC
+		PUSH additional interrupt information if available
+		PUSH interrupt-causing address
+		PUSH interrupt code (i.e. position in interrupt vector)
+		PUSH oldflags
+		PUSH 40
+		PC = memory[$INTVEC + interrupt code]
+
+Note that if the interrupt handler behaves like a normal function, and performs
+	PUSH FP
+	LOAD FP, SP
+as its first actions, then those three pieces of information will be available at 
+[FP+3], [FP+4], and [FP+5], the locations of the first three parameters to a 
+function in BCPL.
+
+But an interrupt handler must not return in the way an ordinary function does.
+	LOAD SP, FP
+        POP  FP
+are still appropriate, but RET does not do enough. IRET must be used instead.
+The BCPL statement "ireturn" translates to the correct three instruction sequence.
+
+let interrupt_handler(intcode, address, info) be
+{ ...
+  ireturn; }
+
+The first parameter is always the interrupt code, the IV$ value for the interrupt.
+
+For these interrupts: PAGEFAULT, PAGEPRIV,
+the second parameter is the virtual address that caused the problem.
+
+For this interrupt: MEMORY,
+the second parameter is the physical address that caused the problem.
+
+For these interrupts: UNIMPOP, HALT, DIVZERO, UNWROP, PRIVOP, BADCALL, DEBUG,
+the second parameter is the address of the instruction that caused the problem 
+(i.e. the PC value).
+
+For this interrupt: BADCALL,
+the third parameter is the operand of the SYSCALL instruction that caused the problem.
+
+For this interrupt: INTRFAULT,
+which is only caused by a fatal error during interrupt processing, the second 
+parameter is left unchanged from the original interrupt's setting, and the third 
+parameter is set to the interrupt code for the original interrupt.
+

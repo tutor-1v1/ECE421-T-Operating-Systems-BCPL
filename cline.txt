@@ -1,0 +1,18 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+import "other"
+
+let pre_start() be
+{ out("cline's pre_start\n") }
+
+let start(argv) be
+{ let i = 0;
+  out("%f\n", f(pi));
+  while argv ! i <> nil do
+  { out("%d: \"%s\"\n", i, argv ! i);
+    i +:= 1 } }
+
+

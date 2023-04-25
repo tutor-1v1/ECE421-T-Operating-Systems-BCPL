@@ -1,0 +1,36 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+Disc operations
+
+
+devctl(DC_DISC_CHECK, Unit)
+
+   returns the number of blocks on disc drive Unit (1 to 8)
+   returns 0 if the indicated disc is not available
+   or -2 if the parameter could not be read
+   or -3 if the unit number is not in range 1 to 8
+
+
+devctl(DC_DISC_READ, Unit, FirstBlock, NumberOfBlocks, MemAddress)
+
+   reads the indicated blocks into memory starting at MemAddress.
+   MemAddress must point to at least NumberOfBlocks*128 words of memory.
+   returns number of blocks actually read
+   or -2 if the parameters could not be read
+   or -3 if the unit number is not available
+   or -4 if a block number is out of range
+   or -5 if MemAddress could not be read from
+
+
+devctl(DC_DISC_WRITE, Unit, FirstBlock, NumberOfBlocks, MemAddress)
+
+   writes the indicated blocks from memory starting at MemAddress.
+   MemAddress must point to at least NumberOfBlocks*128 words of memory.
+   returns number of blocks actually written
+   or -2 if the parameters could not be read
+   or -3 if the unit number is not available
+   or -4 if a block number is out of range
+   or -5 if MemAddress could not be written to
+   or -6 if it could not write all of the data to disc

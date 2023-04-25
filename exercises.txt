@@ -1,0 +1,61 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+
+Some voluntary exercises if you feel the need for a bit more practice
+with BCPL but can't think of anything useful to do.
+
+1. We saw a tree being created (section 34 of the documentation). Now
+   define a linked list object. Just a simple one where you only add or
+   remove at the front.
+
+2. Make another linked list type that also makes it efficient to add a
+   new item to the end (without losing the ability to add to the front).
+   Don't worry about removing from the end yet, that is trickier.
+
+3. Make a similar object for a doubly linked list, each link has a pointer
+   to the previous link as well as a next link pointer. With this, you
+   should be able to add and remove from the front and back efficiently.
+
+4. Program quicksort.
+
+5. Make a small library of string functions, like C's <string.h>. If you're
+   not familiar with C, this is the idea: in BCPL a string is just a pointer
+   to an array where each word has four ascii codes packed into it. But
+   BCPL does not provide any string operators, C's <string.h> defines 
+   functions that do the work for you. Here's some samples:
+      void strcpy(s, t) - assignment: overwrite s with t
+      int strcmp(s, t) - dictionary-like comparison, 
+                         result<0 for s<t, >0 for s>t, ==0 for s==t
+      void strcat(s, t) - append t to the end of s
+      int strlen(s) - the number of characters in s
+      string strdup(s) - make a copy of s, in newly allocated (newvec) heap
+                         memory of exactly the right size.
+      strncpy(s, t, n) - like strcpy but maximum length is n.
+                         the result is still zero terminated even if n is reached.
+      strncmp(s, t, n) - like strcmp but if s and t are equal up to the
+                         first n characters it stops and returns 0.
+   The library functions are not capable of checking that the destination
+   string (for functions that have one) is big enough to hold the result.
+   It is the user's responsibility to make sure of that.
+   Strings are covered in section 35 of the documentation.
+
+6. Define a packed array object. As an example, if your are dealing with
+   integers in the range 0 to 100, you only need 7 bits to store each of
+   them. If you want an array of them, instead of storing one value in each
+   32 bit word, you can save a lot by packing 4 values into each word.
+   Bit selectors and "of" are covered in section 36.
+   Bitwise operators are covered in sections 38 to 40.
+
+7. Define a vector: like an array, but it grows on demand.
+   Maybe give it a safe accessor function that checks the index is in bounds.
+
+8. Define a better string library (based on 5). This time the strings are
+   proper objects that record their own lengths. Now you can make sure that
+   strcpy and other functions are safe, and maybe enlarget the destination
+   strings when needed.
+
+9. Define a hash table where the keys are strings and the values are pointers.
+
+

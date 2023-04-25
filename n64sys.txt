@@ -1,0 +1,31 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+export { thing_with_registers, thing_with_parameters, exit, print_memmap }
+
+let thing_with_registers(a, b, c, d) be
+{ assembly
+  { load r1, [<a>]
+    load r2, [<b>]
+    load r3, [<c>]
+    load r4, [<d>]
+    syscall 1 } }
+
+let thing_with_parameters() be
+{ assembly { syscall 2 } }
+
+let exit() be
+{ assembly { syscall 3 } }
+
+let print_memmap() be
+{ assembly { syscall 4 } }
+
+let syscall_inch() be
+{ assembly { syscall 5 } }
+
+let pre_start() be
+{ inch := syscall_inch }
+

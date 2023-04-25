@@ -1,0 +1,30 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+This tiny example of a Monitor is written in Concurrent Pascal.
+---------------------------------------------------------------
+
+
+monitor class Account {
+  private int balance := 0
+  invariant balance >= 0
+
+  public method boolean withdraw(int amount)
+    precondition amount >= 0
+  {
+    if balance < amount
+      then 
+        return false
+      else 
+      { balance := balance - amount;
+        return true }
+  }
+
+  public method deposit(int amount)
+    precondition amount >= 0
+  {
+    balance := balance + amount
+  }
+}
+

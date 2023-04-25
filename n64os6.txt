@@ -1,0 +1,344 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+
+manifest
+{ iv_none = 0,        iv_memory = 1,      iv_pagefault = 2,   iv_unimpop = 3,
+  iv_halt = 4,        iv_divzero = 5,     iv_unwrop = 6,      iv_timer = 7,
+  iv_privop = 8,      iv_keybd = 9,       iv_badcall = 10,    iv_pagepriv = 11,
+  iv_debug = 12,      iv_intrfault = 13 }
+
+static { freepagelist = 0, saved_os_sp, saved_os_fp, saved_os_pc, user_running = false }
+
+manifest
+{ freepagelist_ptr_addr = 0xC0000800,
+  freepagelist_number_addr = 0xC0000801,
+  pte_map_page_1_addr = 0xC0980002,
+  page_dir_va = 0xC0000000,
+  map_page_1 = 0xC0001000,
+  intvec = 0xC0000810,
+  cgbase = 0xC0000830,
+  next_free_in_attic = 0xC0000930,
+  usr_code_pt = 0xC0800000,
+  usr_stack_pt = 0xC08FF800,
+  page_address_only = bitnot 0x7FF,
+  VALID = 1 }
+
+let get_page() be
+{ if ! freepagelist_number_addr = 0 then     
+  { outs("\nRun out of free pages\n");     
+    resultis -1 }
+  ! freepagelist_number_addr -:= 1;
+  resultis freepagelist ! ! freepagelist_number_addr }
+  
+let release_page(addr) be
+{ addr := addr bitand page_address_only;
+  freepagelist ! ! freepagelist_number_addr := addr;
+  ! freepagelist_number_addr +:= 1 }
+
+let print_frees() be
+{ for i = ! freepagelist_number_addr - 1 to 0 by -1 do
+    out("%08x ", freepagelist ! i);
+  out("\nTotal of %d free pages\n", ! freepagelist_number_addr) }
+
+let exit_user_program() be
+{ assembly
+  { load  r1, 0
+    setfl r1, $ip
+    load  sp, [<saved_os_sp>]
+    load  fp, [<saved_os_fp>]
+    load  pc, [<saved_os_pc>] } }
+
+let pfhandler(a, addr, c) be
+{ let ptn = addr >> 22;
+  let pn = (addr >> 11) bitand 0x7FF;
+  let offs = addr bitand 0x7FF;
+  let npte;
+  out("PAGE FAULT! addr = %x, %x/%x/%x\n", addr, ptn, pn, offs);
+  if ptn <> 511 then
+  { outs("Bad memory access\n");
+    exit_user_program() }
+  npte := get_page() bitor VALID;
+  if npte < 0 then
+    exit_user_program();
+  0xC08FF800 ! pn := npte;
+  ireturn }
+
+let thandler() be
+{ out("TIMER!\n");
+  ireturn }
+
+let halthandler() be
+{ out("\nProcess executed HALT instruction\n");
+  exit_user_program() }
+
+let syscall_with_registers(code, regn, regv, pc, fp, sp, r12, r11, r10, r9, r8, r7, r6, r5, r4, r3, r2, r1, r0) be
+{ out("syscall_with_registers, R1 = %d, R2 = %d, R3 = %d, R4 = %d\n", r1, r2, r3, r4);  // flags is before code
+  ireturn }
+
+let syscall_with_parameters(code, regn, regv, pc, fp, sp) be
+{ let nargs = (fp ! 2) / 2;
+  out("syscall_with_parameters[%d](", code);
+  for i = 3 to 1 + nargs do
+    out("%d, ", fp ! i);
+  if nargs > 0 then
+    out("%d", fp ! (2 + nargs));
+  outs(")\n");
+  ireturn }
+
+let syscall_exit() be
+{ exit_user_program() }
+
+let load_program(fname) be
+{ let page_num = 0;
+  let offset = 0x400;
+  let buff_pos = offset;
+  let page_addr, r, va;
+  r := devctl(DC_TAPE_LOAD, 1, fname, 'R');
+  if r < 0 then
+  { out("error %d for load '%s'\n", r, fname);
+    resultis -1 }
+
+  page_addr := get_page();
+  if page_addr < 0 then
+    resultis -1;
+  usr_stack_pt ! 2047 := page_addr bitor VALID;
+
+  page_addr := get_page();
+  if page_addr < 0 then
+    resultis -1;
+  usr_code_pt ! 0 := page_addr bitor VALID;
+  while true do
+  { if  buff_pos = 2048 then
+    { buff_pos := 0;
+      page_num +:= 1;
+      page_addr := get_page();
+      if page_addr < 0 then
+        resultis -1;
+      usr_code_pt ! page_num := page_addr bitor VALID }
+    va := (page_num << 11) + buff_pos;
+    r := devctl(DC_TAPE_READ, 1, va);
+    if r < 512 then break;
+    buff_pos +:= 128 }
+  devctl(DC_TAPE_UNLOAD, 1) }
+
+let unload_program() be
+{ for i = 2047 to 0 by -1 do
+    if (usr_stack_pt ! i) bitand VALID then
+    { release_page(usr_stack_pt ! i);
+      usr_stack_pt ! i := 0 }
+  for i = 0 to 2047 do
+    if (usr_code_pt ! i) bitand VALID then
+    { release_page(usr_code_pt ! i);
+      usr_code_pt ! i := 0 } }
+
+let print_mem_map() be
+{ let pdbr;
+  assembly
+  { getsr r1, $pdbr
+    store r1, [<pdbr>] }
+  out("00000000 to FFFFFFFF: PDBR = p%x, v%x\n", pdbr, page_dir_va);
+  for ptn = 1023 to 0 by -1 do               // page table number
+  { let pde = page_dir_va ! ptn;             // page directory entry
+    let pt = pde bitand page_address_only;   // page table's address
+    let ptrange = ptn << 22;                 // beginning of PT's VA range
+    if pde = 0 then loop;
+    out("   %08x to %08x: ", ptrange, ptrange + 0x3FFFFF);
+    if (pde bitand VALID) = 0 then
+    { out("%08x - invalid\n", pde);
+      loop }
+    out("pp %d at %x\n", pde >> 11, pde >> 11 << 11);
+    ! pte_map_page_1_addr := pde;
+    for pn = 2047 to 0 by -1 do         // page number in table
+    { let pte = map_page_1 ! pn;        // page table entry
+      let range = ptrange + (pn << 11); // beginning of page's VA range
+      if pte = 0 then loop;
+      out("      %08x to %08x: ", range, range + 0x7FF);
+      if (pte bitand VALID) = 0 then
+      { out("%08x - invalid\n", pte);
+        loop }
+      out("pp %d at %x\n", pte >> 11, pte >> 11 << 11) } } }
+
+let syscall_memmap() be
+{ print_mem_map();
+  ireturn }
+
+let kbbuff = vec(25),
+    kbbs = 0, kbbe = 0, kbbn = 0, kbbmax = 99, kbblines = 0;
+
+let kbbadd(c) be
+{ if kbbn >= kbbmax then resultis 0;
+  byte kbbe of kbbuff := c;
+  if c = '\n' then kbblines +:= 1;
+  kbbn +:= 1;
+  kbbe +:= 1;
+  if kbbe > kbbmax then kbbe := 0;
+  resultis 1 }
+
+let kbbunadd() be
+{ let newkbbe = kbbe - 1, c;
+  if newkbbe < 0 then newkbbe := kbbmax;
+  c := byte newkbbe of kbbuff;
+  if c = '\n' \/ kbbn = 0 then resultis 0;
+  kbbe := newkbbe;
+  kbbn -:= 1;
+  resultis 1 }
+
+let kbbremove() be
+{ let c;
+  if kbblines = 0 then resultis 0;
+  c := byte kbbs of kbbuff;
+  kbbn -:= 1;
+  kbbs +:= 1;
+  if kbbs > kbbmax then kbbs := 0;
+  if c = '\n' then kbblines -:= 1;
+  resultis c }
+
+let kbbackch() be
+{ let c;
+  if kbbn >= kbbmax + 1 then return;
+  kbbs -:= 1;
+  if kbbs < 0 then kbbs := kbbmax;
+  kbbn +:= 1;
+  c := byte kbbs of kbbuff;
+  if c = '\n' then kbblines +:= 1 }
+
+let minch() be
+{ let c = 0;
+  while true do
+  { c := kbbremove();
+    if c <> 0 then
+      resultis c;
+    assembly { pause } } }
+
+let syscall_inch(op, rn, rv, r15, r14, r13, r12, r11, r10, r9, r8, r7, r6, r5, r4, r3, r2, r1, r0) be
+{ r1 := minch();
+  ireturn }
+
+let keyboard_handler() be
+{ let c;
+  devctl(DC_TERMINC, 1, @ c);
+  test c = 'H'-64 then
+  { if kbbunadd() then
+      assembly
+      { type 8
+        type ' '
+        type 8 } }
+  else test c = 'X'-64 then 
+    if user_running then
+      exit_user_program()
+  else
+  { if kbbadd(c) then
+      assembly { type [<c>] } }
+  ireturn }
+
+let inlast = '\n';
+
+let newinput() be
+{ outs(">> ");
+  inlast := 0; }
+
+let inchar() be
+{ if inlast <> 0 then
+  { let r = inlast;
+    inlast := 0;
+    resultis r; }
+  resultis inch(); }
+
+let inpart(s, max) be
+{ let c = inchar(), n = 0;
+  while true do
+  { if c = '\n' then
+    { inlast := '\n';
+      resultis nil; }
+    if c > ' ' then break;
+    c := inchar(); }
+  while true do
+  { if n < max then
+    { byte n of s := c;
+      n +:= 1 }
+    c := inchar();
+    if c <= ' ' then
+    { inlast := c;
+      break } }
+  byte n of s := 0;
+  resultis s }
+
+let streq(a, b) be
+{ let i = 0;
+  while true do
+  { let ca = byte i of a, cb = byte i of b;
+    if ca <> cb then resultis false;
+    if ca = 0 then resultis true;
+    i +:= 1 } }
+
+let start() be
+{ let x = 12;
+  let y = x*x;
+  let stack_ptr = 0x7FFFFFFF;
+  freepagelist := ! freepagelist_ptr_addr;
+  intvec ! iv_pagefault := pfhandler;
+  intvec ! iv_timer := thandler;
+  intvec ! iv_halt := halthandler;
+  intvec ! iv_keybd := keyboard_handler;
+  cgbase ! 1 := syscall_with_registers;
+  cgbase ! 2 := syscall_with_parameters;
+  cgbase ! 3 := syscall_exit;
+  cgbase ! 4 := syscall_memmap;
+  cgbase ! 5 := syscall_inch;
+  out("I'm the operating system!\n");
+  out("  start = %x\n", start);
+  out("     @x = %x\n", @x);
+  out("      y = %d\n", y);
+  assembly
+  { loadh r1, 200
+    setsr r1, $timer
+    load  r1, 0
+    setfl r1, $ip }
+  inch := minch;
+  while true do
+  { let s = vec(30);
+    newinput();
+    s := inpart(s, 119);
+    if s = nil then loop;
+
+    test s %streq "exit" then
+      break
+
+    else test s %streq "run" then
+    { let fn = inpart(s, 119), r;
+      if fn = nil then
+        loop;
+      r := load_program(fn);
+      if r < 0 then
+      { unload_program();
+        loop }
+      assembly
+      { load  r2, [<stack_ptr>]
+        store sp, [<saved_os_sp>]
+        store fp, [<saved_os_fp>]
+        load  r1, 0
+        setfl r1, $ip
+        setfl r1, $sys
+        load  r1, pc + 6
+        store r1, [<saved_os_pc>]
+        load  r1, 1
+        store r1, [<user_running>]
+        store r2, sp
+        store r2, fp
+        jump  0x400 }
+      user_running := false;
+      unload_program() }
+
+    else test s %streq "map" then
+      print_mem_map()
+
+    else test s %streq "free" then
+      print_frees()
+
+    else
+      out("bad command '%s'\n", s) }
+  outs("all done\n") }
+

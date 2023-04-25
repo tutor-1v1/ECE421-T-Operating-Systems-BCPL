@@ -1,0 +1,52 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+import "io"
+import "sys"
+
+let wasted = vec(1000)
+
+let twon(n) be
+{ if n = 0 then
+    resultis 0;
+  resultis 2 + twon(n-1) }
+
+let start() be
+{ let x = 9;
+  let y = x*x;
+  let address;
+  out("I'm only a user program\n");
+  out("  start = %x\n", start);
+  out("     @x = %x\n", @x);
+  out("      y = %d\n", y);
+  thing_with_registers(123, 234, 345, 456);
+  thing_with_parameters(111, 222);
+  thing_with_parameters(111, 222, 333, 444, 555, 666);
+  outs("**** before recursive calls:\n");
+  memmap(mm_print);
+  out("twon(100) = %d\n", twon(100));
+  out("twon(200) = %d\n", twon(200));
+  out("twon(300) = %d\n", twon(300));
+  out("twon(400) = %d\n", twon(400));
+  out("twon(500) = %d\n", twon(500));
+  out("twon(1500) = %d\n", twon(1500));
+  outs("**** after recursive calls, before request:\n");
+  memmap(mm_print);
+  outs("What is your favourite number? ");
+  x := inno();
+  out("You said %d\n", x);
+  address := 0x40000000;
+  out("va = %08x, pde = %08x, pte = %08x\n", 
+      address, memmap(mm_get_pde, address), memmap(mm_get_pte, address));
+  memmap(mm_request, 0x3FFFFFFF, 0x40000900);
+  outs("**** after request:\n");
+  memmap(mm_print);
+  ! address := 999;
+  out("va = %08x, pde = %08x, pte = %08x\n", 
+      address, memmap(mm_get_pde, address), memmap(mm_get_pte, address));
+  memmap(mm_release, 0x3FFFFFFF, 0x40000900);
+  outs("**** after release:\n");
+  memmap(mm_print);
+  exit() }
+

@@ -1,0 +1,18 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+
+let pfhandler(a, addr, c) be
+{ let ptn = addr >> 22;
+  let pn = (addr >> 11) bitand 0x7FF;
+  let offs = addr bitand 0x7FF;
+  let npte = get_page() bitor 1;
+  out("PAGE FAULT! addr = %x, %x/%x/%x\n", addr, ptn, pn, offs);
+  if ptn <> 511 then
+  { outs("Bad memory access\n");
+    finish }
+  0xC08FF800 ! pn := npte;
+  ireturn }
+
+

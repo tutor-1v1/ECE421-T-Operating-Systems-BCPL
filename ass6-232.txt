@@ -1,0 +1,47 @@
+https://tutorcs.com
+WeChat: cstutorcs
+QQ: 749389476
+Email: tutorcs@163.com
+
+This has two related parts, both to do with the VAX-11 computer's
+operating systems
+
+1. Investigate the structure of the VMS file system
+   here are two starting points, but follow things up, don't just stop
+   here. Question 4 will require a further search.
+      https://en.wikipedia.org/wiki/Files-11
+      https://vmssoftware.com/docs/VSI_Gd_to_File_Apps_23Jul19.pdf
+
+   The answer these questions:
+   
+   1. What is an "extent"?
+   
+   2. Compare the FILES-11 file structure to multi- or variable-level
+      index structures from class. In what ways is it better or worse?
+
+   3. What is the index file, INDEXF.SYS? Is this structure a good or
+      bad idea, and why?
+
+   4. What are "ACL"s? Compare them with the normal Unix way of handling
+      file protections, -rwxrwxrwx etc. Have we anything to learn from
+      them? Could they be used with Unix file systems?
+
+2. Investigate the VAX virtual memory implementation
+   here is a starting point for that:
+      https://pages.cs.wisc.edu/~remzi/OSTEP/vm-vax.pdf
+
+   The answer these questions:
+   
+   5. They only use 512 byte pages. What problems does this cause? Are
+      there any benefits to such small pages?
+
+   6. Compare the VAX virtual memory implementation with the ones we
+      have studied (Intel's and the emulator's). In what ways is it
+      better or worse?
+      
+   7. Why do you suppose operating systems are not like VMS any more,
+      and virtual memory is only very rarely done the VAX way?
+
+Submit on blackboard as a regular assignment.
+
+
